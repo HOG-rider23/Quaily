@@ -1,30 +1,27 @@
 #avto = input()
 #S = float(input())
 #V = float(input())
-import time
+#import time
 class specs:
-    def __init__(self, Vmax, weight, hp,br):
-        self.currentV = 0
-        self.Vmax = Vmax
-        self.weight = weight
-        self.hp = hp
-        self.br = br
-        self.a = round((self.hp * 745.7) / (self.weight * (self.Vmax / 3.6)), 2)
+    def __init__(self, vmax, weight, hp,br):
+        self.currentV = 0 #zacetna hitrost
+        self.Vmax = vmax / 3.6 # m/s
+        self.weight = weight # kg
+        self.hp = hp * 745.7 # moč motorja W
+        self.br = br # bremze  g
+        self.a = round(self.hp / (self.weight * self.Vmax), 2)
 
-    def acelearate(self, t):
-        self.currentV += self.a * t
-        print("currentV:", round(self.currentV,2))
-        if self.currentV > self.Vmax:
-            self.currentV = self.Vmax
-        elif self.currentV < 0:
-            self.currentV = 0
+    def accelerate(self, t):
+        self.currentV = min(self.Vmax,  self.currentV + self.a * t)
+        print("currentV:", round(self.currentV * 3.6, 2))
 
-car = specs(Vmax=335,weight=768,hp=1000,br=6)
-for i in range(10):
-    car.acelearate(t = 0.1)
+    def decelerate(self, t):
+        self.currentV = max(0,(self.currentV - 9.81 * self.br * t))
+        print("currentV:", round(self.currentV * 3.6, 2))
 
-#print(a , "m/s²", t , "s", d, "m")
-#abr = br * 9.81
-#tbr = round((335/3.6)/ abr)
-#dbr = round((335/3.6)**2 / (2 * abr))
-#print(abr , "m/s²", tbr , "s", dbr, "m")
+car = specs(vmax=335,weight=768,hp=1000,br=6)
+while car.currentV < car.Vmax:
+    car.accelerate(t = 0.1)
+
+while car.currentV > 0:
+    car.decelerate(t = 0.1)

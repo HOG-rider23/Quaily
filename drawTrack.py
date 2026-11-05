@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
 from math import atan2, degrees, hypot
+import time
 
 from CSVconverter import load_track
 from drawCar import draw_start, move_car
@@ -13,6 +14,9 @@ raceDistance = 0.0
 segmentLengths = []
 lapLength = 0.0
 corners = []
+completed_laps = 0
+lap_timer_start = None
+lap_time = None
 PIXELS_PER_METER = 1.0
 CORNER_ANGLE_THRESHOLD = 18
 CORNER_WINDOW = 8
@@ -42,6 +46,9 @@ track_selector = ttk.Combobox(
     state="readonly",
 )
 track_selector.pack()
+
+timer_label = ttk.Label(window, text="Lap timer: waiting for warm-up lap")
+timer_label.pack()
 
 
 def detect_corners(points, segment_lengths):
@@ -106,6 +113,7 @@ def detect_corners(points, segment_lengths):
 
 def draw_track(event=None):
     global racePoints, carID, raceDistance, segmentLengths, lapLength, corners
+    global completed_laps, lap_timer_start, lap_time
 
     canvas_width = canvas.winfo_width()
     canvas_height = canvas.winfo_height()
@@ -137,12 +145,16 @@ def draw_track(event=None):
             tags="corner-label",
         )
     raceDistance = 0.0
+    completed_laps = 0
+    lap_timer_start = None
+    lap_time = None
+    timer_label.config(text="Lap timer: waiting for warm-up lap")
     car.currentV = 0
     carID = draw_start(canvas, *racePoints[0])
 
 
 def draw_race(event=None):
-    global raceDistance
+    global raceDistance, completed_laps, lap_timer_start, lap_time
     dt = 0.05
     if len(racePoints) > 1 and carID is not None and lapLength > 0:
         upcoming_corner = None
@@ -174,9 +186,16 @@ def draw_race(event=None):
         else:
             car.accelerate(dt)
 
-        raceDistance = (
-            raceDistance + car.currentV * dt * PIXELS_PER_METER
-        ) % lapLength
+        distance_step = car.currentV * dt * PIXELS_PER_METER
+        total_distance = raceDistance + distance_step
+        line_crossings = int(total_distance // lapLength)
+        for _ in range(line_crossings):
+            completed_laps += 1
+            if completed_laps == 1:
+                lap_timer_start = time.perf_counter()
+            elif completed_laps == 2 and lap_timer_start is not None:
+                lap_time = time.perf_counter() - lap_timer_start
+        raceDistance = total_distance % lapLength
 
         distance = raceDistance
         for i, segment_length in enumerate(segmentLengths):
@@ -189,6 +208,17 @@ def draw_race(event=None):
                 move_car(canvas, carID, x, y)
                 break
             distance -= segment_length
+    if lap_timer_start is None:
+        timer_label.config(text="Lap timer: waiting for warm-up lap")
+    elif lap_time is None:
+        elapsed = time.perf_counter() - lap_timer_start
+        timer_label.config(
+            text=f"Lap time: {int(elapsed // 60):02}:{elapsed % 60:05.2f}"
+        )
+    else:
+        timer_label.config(
+            text=f"Lap time: {int(lap_time // 60):02}:{lap_time % 60:05.2f}"
+        )
     window.after(50, draw_race)
 
 canvas.bind("<Configure>", draw_track)

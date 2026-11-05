@@ -2,7 +2,7 @@ import csv
 from pathlib import Path
 
 
-def load_track(csv_path, canvas_width, canvas_height, margin=30):
+def load_track(csv_path, canvas_width, canvas_height, margin=30, reference_path=None):
     points = []
 
     with Path(csv_path).open(newline="") as file:
@@ -15,10 +15,21 @@ def load_track(csv_path, canvas_width, canvas_height, margin=30):
     if len(points) < 2:
         raise ValueError("The track CSV must contain at least two coordinate rows.")
 
-    min_x = min(x for x, _ in points)
-    max_x = max(x for x, _ in points)
-    min_y = min(y for _, y in points)
-    max_y = max(y for _, y in points)
+    bounds_points = points
+    if reference_path is not None:
+        bounds_points = []
+        with Path(reference_path).open(newline="") as file:
+            for row in csv.reader(file):
+                if not row or row[0].startswith("#"):
+                    continue
+                bounds_points.append((-float(row[1]), float(row[0])))
+        if len(bounds_points) < 2:
+            raise ValueError("The reference track CSV must contain at least two coordinate rows.")
+
+    min_x = min(x for x, _ in bounds_points)
+    max_x = max(x for x, _ in bounds_points)
+    min_y = min(y for _, y in bounds_points)
+    max_y = max(y for _, y in bounds_points)
     track_width = max_x - min_x  # širina proge
     track_height = max_y - min_y # višna proge
     scale = min(
